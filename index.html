@@ -35,9 +35,16 @@
             const [error, setError] = useState(null);
             const [showTeamFilter, setShowTeamFilter] = useState(false);
             
-            // User's favorite teams - default filter
-            const [favoriteTeams, setFavoriteTeams] = useState(['SJS', 'MTL', 'COL', 'EDM', 'NJD']);
-            const [filterEnabled, setFilterEnabled] = useState(true);
+            // Load saved teams from localStorage or use defaults
+            const [favoriteTeams, setFavoriteTeams] = useState(() => {
+                const saved = localStorage.getItem('nhlFavoriteTeams');
+                return saved ? JSON.parse(saved) : ['SJS', 'MTL', 'COL', 'EDM', 'NJD'];
+            });
+            
+            const [filterEnabled, setFilterEnabled] = useState(() => {
+                const saved = localStorage.getItem('nhlFilterEnabled');
+                return saved ? JSON.parse(saved) : true;
+            });
 
             const allTeams = [
                 'ANA', 'BOS', 'BUF', 'CAR', 'CBJ', 'CGY', 'CHI', 'COL', 'DAL', 'DET',
@@ -45,6 +52,16 @@
                 'PHI', 'PIT', 'SEA', 'SJS', 'STL', 'TBL', 'TOR', 'UTA', 'VAN', 'VGK',
                 'WPG', 'WSH'
             ];
+
+            // Save to localStorage whenever favorites change
+            useEffect(() => {
+                localStorage.setItem('nhlFavoriteTeams', JSON.stringify(favoriteTeams));
+            }, [favoriteTeams]);
+
+            // Save to localStorage whenever filter toggle changes
+            useEffect(() => {
+                localStorage.setItem('nhlFilterEnabled', JSON.stringify(filterEnabled));
+            }, [filterEnabled]);
 
             useEffect(() => {
                 fetchGames(selectedDate);
