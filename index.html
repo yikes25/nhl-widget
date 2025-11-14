@@ -48,7 +48,7 @@
             // Load saved teams from localStorage or use defaults
             const [favoriteTeams, setFavoriteTeams] = useState(() => {
                 const saved = localStorage.getItem('nhlFavoriteTeams');
-                return saved ? JSON.parse(saved) : ['SJS', 'MTL', 'COL', 'EDM', 'NJD'];
+                return saved ? JSON.parse(saved) : ['SJS', 'MTL', 'COL', 'EDM', 'NJD', 'TOR', 'CHI', 'PHI'];
             });
             
             const [filterEnabled, setFilterEnabled] = useState(() => {
