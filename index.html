@@ -20,6 +20,11 @@
         .game-card {
             backdrop-filter: blur(10px);
         }
+        .team-logo {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-900 via-slate-900 to-gray-900 min-h-screen">
@@ -36,8 +41,8 @@
             const [error, setError] = useState(null);
             const [showTeamFilter, setShowTeamFilter] = useState(false);
             
-            // User's favorite teams - default filter
-            const [favoriteTeams, setFavoriteTeams] = useState(['SJS', 'MTL', 'COL', 'EDM', 'NJD']);
+            // Updated default teams: CHI, COL, EDM, MIN, MTL, NJD, PHI, SJS
+            const [favoriteTeams, setFavoriteTeams] = useState(['CHI', 'COL', 'EDM', 'MIN', 'MTL', 'NJD', 'PHI', 'SJS']);
             const [filterEnabled, setFilterEnabled] = useState(true);
 
             const allTeams = [
@@ -46,6 +51,11 @@
                 'PHI', 'PIT', 'SEA', 'SJS', 'STL', 'TBL', 'TOR', 'UTA', 'VAN', 'VGK',
                 'WPG', 'WSH'
             ];
+
+            // Function to get team logo URL - construct directly from abbreviation
+            function getTeamLogoUrl(teamAbbrev) {
+                return `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_light.svg`;
+            }
 
             useEffect(() => {
                 fetchGames(selectedDate);
@@ -141,9 +151,11 @@
 
             function formatTime(dateString) {
                 const date = new Date(dateString);
+                // Format for New York timezone (America/New_York)
                 return date.toLocaleTimeString('en-US', { 
                     hour: 'numeric', 
                     minute: '2-digit',
+                    timeZone: 'America/New_York',
                     timeZoneName: 'short'
                 });
             }
@@ -321,13 +333,14 @@
                                             <div className="flex items-center justify-between gap-4">
                                                 {/* Away Team */}
                                                 <div className="flex-1 text-center">
-                                                    {game.awayTeam.logo && (
-                                                        <img 
-                                                            src={game.awayTeam.logo} 
-                                                            alt={game.awayTeam.abbrev}
-                                                            className="w-16 h-16 mx-auto mb-2"
-                                                        />
-                                                    )}
+                                                    <img 
+                                                        src={getTeamLogoUrl(game.awayTeam.abbrev)}
+                                                        alt={game.awayTeam.abbrev}
+                                                        className="team-logo mx-auto mb-2"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
                                                     <div className="text-2xl font-bold text-white mb-1">
                                                         {game.awayTeam.abbrev}
                                                     </div>
@@ -358,13 +371,14 @@
 
                                                 {/* Home Team */}
                                                 <div className="flex-1 text-center">
-                                                    {game.homeTeam.logo && (
-                                                        <img 
-                                                            src={game.homeTeam.logo} 
-                                                            alt={game.homeTeam.abbrev}
-                                                            className="w-16 h-16 mx-auto mb-2"
-                                                        />
-                                                    )}
+                                                    <img 
+                                                        src={getTeamLogoUrl(game.homeTeam.abbrev)}
+                                                        alt={game.homeTeam.abbrev}
+                                                        className="team-logo mx-auto mb-2"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
                                                     <div className="text-2xl font-bold text-white mb-1">
                                                         {game.homeTeam.abbrev}
                                                     </div>
