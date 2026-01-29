@@ -30,6 +30,7 @@
 
         function NHLWidget() {
             const [games, setGames] = useState([]);
+            const [gameDetails, setGameDetails] = useState({});
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
@@ -50,11 +51,24 @@
                 fetchGames(selectedDate);
             }, [selectedDate]);
 
+            async function fetchGameDetails(gameId) {
+                try {
+                    const nhlApiUrl = `https://api-web.nhle.com/v1/gamecenter/${gameId}/landing`;
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(nhlApiUrl)}`;
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        return await response.json();
+                    }
+                } catch (err) {
+                    console.error(`Failed to fetch details for game ${gameId}:`, err);
+                }
+                return null;
+            }
+
             async function fetchGames(date) {
                 setLoading(true);
                 setError(null);
                 try {
-                    // Use allOrigins CORS proxy
                     const nhlApiUrl = `https://api-web.nhle.com/v1/schedule/${date}`;
                     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(nhlApiUrl)}`;
                     
@@ -69,12 +83,9 @@
                     // Extract games from the gameWeek array
                     let gamesList = [];
                     
-                    // The API returns gameWeek as an array of day objects
                     if (data.gameWeek && Array.isArray(data.gameWeek)) {
-                        // Flatten all games from all days in the week
                         data.gameWeek.forEach(dayData => {
                             if (dayData.games && Array.isArray(dayData.games)) {
-                                // Filter for the selected date only
                                 const dayGames = dayData.games.filter(game => {
                                     return dayData.date === date;
                                 });
@@ -92,6 +103,20 @@
                     }
                     
                     setGames(gamesList);
+                    
+                    // Fetch detailed info for live and final games
+                    const detailsMap = {};
+                    for (const game of gamesList) {
+                        if (game.gameState === 'LIVE' || game.gameState === 'CRIT' || 
+                            game.gameState === 'FINAL' || game.gameState === 'OFF') {
+                            const details = await fetchGameDetails(game.id);
+                            if (details) {
+                                detailsMap[game.id] = details;
+                            }
+                        }
+                    }
+                    setGameDetails(detailsMap);
+                    
                 } catch (err) {
                     console.error('Fetch error:', err);
                     setError(`Failed to load games: ${err.message}`);
@@ -108,7 +133,6 @@
                 }
             }
 
-            // Re-fetch when filter changes
             useEffect(() => {
                 if (games.length > 0 || !loading) {
                     fetchGames(selectedDate);
@@ -124,17 +148,53 @@
                 });
             }
 
-            function getGameStatus(game) {
+            function getGameStatus(game, details) {
                 const state = game.gameState;
                 if (state === 'FUT' || state === 'PRE') {
                     return { text: formatTime(game.startTimeUTC), color: 'text-blue-300' };
                 } else if (state === 'LIVE' || state === 'CRIT') {
+                    if (details?.clock?.timeRemaining) {
+                        const period = details.periodDescriptor?.number || 1;
+                        const periodType = details.periodDescriptor?.periodType;
+                        let periodLabel = `${period}${getPeriodSuffix(period)}`;
+                        if (periodType === 'OT') periodLabel = 'OT';
+                        if (periodType === 'SO') periodLabel = 'SO';
+                        return { 
+                            text: `${details.clock.timeRemaining} - ${periodLabel}`, 
+                            color: 'text-red-400 animate-pulse' 
+                        };
+                    }
                     return { text: 'LIVE', color: 'text-red-400 animate-pulse' };
                 } else if (state === 'FINAL' || state === 'OFF') {
                     return { text: 'FINAL', color: 'text-gray-400' };
                 } else {
                     return { text: state, color: 'text-gray-300' };
                 }
+            }
+
+            function getPeriodSuffix(period) {
+                if (period === 1) return 'st';
+                if (period === 2) return 'nd';
+                if (period === 3) return 'rd';
+                return 'th';
+            }
+
+            function getGoalScorers(details, teamAbbrev) {
+                if (!details?.summary?.scoring) return [];
+                
+                const goals = [];
+                details.summary.scoring.forEach(period => {
+                    period.goals?.forEach(goal => {
+                        if (goal.teamAbbrev?.default === teamAbbrev) {
+                            goals.push({
+                                player: goal.name?.default || 'Unknown',
+                                period: period.periodDescriptor?.number || 1,
+                                time: goal.timeInPeriod || ''
+                            });
+                        }
+                    });
+                });
+                return goals;
             }
 
             return (
@@ -239,8 +299,11 @@
                         {!loading && !error && games.length > 0 && (
                             <div className="space-y-3">
                                 {games.map((game) => {
-                                    const status = getGameStatus(game);
+                                    const details = gameDetails[game.id];
+                                    const status = getGameStatus(game, details);
                                     const isFinal = game.gameState === 'FINAL' || game.gameState === 'OFF';
+                                    const awayGoals = getGoalScorers(details, game.awayTeam.abbrev);
+                                    const homeGoals = getGoalScorers(details, game.homeTeam.abbrev);
                                     
                                     return (
                                         <div 
@@ -258,6 +321,13 @@
                                             <div className="flex items-center justify-between gap-4">
                                                 {/* Away Team */}
                                                 <div className="flex-1 text-center">
+                                                    {game.awayTeam.logo && (
+                                                        <img 
+                                                            src={game.awayTeam.logo} 
+                                                            alt={game.awayTeam.abbrev}
+                                                            className="w-16 h-16 mx-auto mb-2"
+                                                        />
+                                                    )}
                                                     <div className="text-2xl font-bold text-white mb-1">
                                                         {game.awayTeam.abbrev}
                                                     </div>
@@ -269,6 +339,16 @@
                                                             {game.awayTeam.score}
                                                         </div>
                                                     )}
+                                                    {/* Goal Scorers */}
+                                                    {awayGoals.length > 0 && (
+                                                        <div className="mt-2 text-xs text-white/70 space-y-1">
+                                                            {awayGoals.map((goal, idx) => (
+                                                                <div key={idx}>
+                                                                    {goal.player} ({goal.time})
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {/* VS or Score */}
@@ -278,6 +358,13 @@
 
                                                 {/* Home Team */}
                                                 <div className="flex-1 text-center">
+                                                    {game.homeTeam.logo && (
+                                                        <img 
+                                                            src={game.homeTeam.logo} 
+                                                            alt={game.homeTeam.abbrev}
+                                                            className="w-16 h-16 mx-auto mb-2"
+                                                        />
+                                                    )}
                                                     <div className="text-2xl font-bold text-white mb-1">
                                                         {game.homeTeam.abbrev}
                                                     </div>
@@ -287,6 +374,16 @@
                                                     {isFinal && (
                                                         <div className="text-3xl font-bold text-white mt-2">
                                                             {game.homeTeam.score}
+                                                        </div>
+                                                    )}
+                                                    {/* Goal Scorers */}
+                                                    {homeGoals.length > 0 && (
+                                                        <div className="mt-2 text-xs text-white/70 space-y-1">
+                                                            {homeGoals.map((goal, idx) => (
+                                                                <div key={idx}>
+                                                                    {goal.player} ({goal.time})
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
