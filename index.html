@@ -55,6 +55,7 @@
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
             const [showTeamFilter, setShowTeamFilter] = useState(false);
+            const [lastRefresh, setLastRefresh] = useState(Date.now());
             
             // Updated default teams: CHI, COL, EDM, MIN, MTL, NJD, PHI, SJS
             const [favoriteTeams, setFavoriteTeams] = useState(['CHI', 'COL', 'EDM', 'MIN', 'MTL', 'NJD', 'PHI', 'SJS']);
@@ -67,6 +68,27 @@
                 'WPG', 'WSH'
             ];
 
+            // Auto-refresh every 2 minutes if there are live games
+            useEffect(() => {
+                const hasLiveGames = games.some(game => 
+                    game.gameState === 'LIVE' || game.gameState === 'CRIT'
+                );
+                
+                if (hasLiveGames) {
+                    const interval = setInterval(() => {
+                        console.log('Auto-refreshing live games...');
+                        setLastRefresh(Date.now());
+                    }, 120000); // 2 minutes
+                    
+                    return () => clearInterval(interval);
+                }
+            }, [games]);
+
+            // Fetch when lastRefresh changes
+            useEffect(() => {
+                fetchGames(selectedDate);
+            }, [selectedDate, lastRefresh]);
+
             // Function to get team logo URL - construct directly from abbreviation
             function getTeamLogoUrl(teamAbbrev) {
                 return `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_light.svg`;
@@ -78,7 +100,9 @@
 
             async function fetchGameDetails(gameId) {
                 try {
-                    const nhlApiUrl = `https://api-web.nhle.com/v1/gamecenter/${gameId}/landing`;
+                    // Add timestamp to prevent caching
+                    const cacheBuster = Date.now();
+                    const nhlApiUrl = `https://api-web.nhle.com/v1/gamecenter/${gameId}/landing?_=${cacheBuster}`;
                     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(nhlApiUrl)}`;
                     const response = await fetch(proxyUrl);
                     if (response.ok) {
@@ -94,7 +118,9 @@
                 setLoading(true);
                 setError(null);
                 try {
-                    const nhlApiUrl = `https://api-web.nhle.com/v1/schedule/${date}`;
+                    // Add timestamp to prevent caching
+                    const cacheBuster = Date.now();
+                    const nhlApiUrl = `https://api-web.nhle.com/v1/schedule/${date}?_=${cacheBuster}`;
                     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(nhlApiUrl)}`;
                     
                     const response = await fetch(proxyUrl);
@@ -209,14 +235,21 @@
             function getGoalScorers(details, teamAbbrev) {
                 if (!details?.summary?.scoring) return [];
                 
+                console.log('Full details for debugging:', details);
+                console.log('Scoring data:', details.summary.scoring);
+                
                 const goals = [];
                 details.summary.scoring.forEach(period => {
                     period.goals?.forEach(goal => {
+                        console.log('Goal data:', goal);
+                        console.log('Assists:', goal.assists);
+                        
                         if (goal.teamAbbrev?.default === teamAbbrev) {
                             // Build assist string
                             let assistText = '';
                             if (goal.assists && goal.assists.length > 0) {
                                 const assistNames = goal.assists.map(a => {
+                                    console.log('Individual assist:', a);
                                     // Use lastName if available, otherwise full name
                                     return a.lastName?.default || a.name?.default || 'Unknown';
                                 }).join(', ');
@@ -232,6 +265,7 @@
                         }
                     });
                 });
+                console.log('Processed goals:', goals);
                 return goals;
             }
 
@@ -259,6 +293,13 @@
                                     className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20"
                                 >
                                     {showTeamFilter ? '✕' : '⚙️'}
+                                </button>
+                                <button
+                                    onClick={() => setLastRefresh(Date.now())}
+                                    className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20"
+                                    title="Refresh data"
+                                >
+                                    🔄
                                 </button>
                             </div>
 
