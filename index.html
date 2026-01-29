@@ -54,10 +54,16 @@
                 setLoading(true);
                 setError(null);
                 try {
-                    const response = await fetch(`https://api-web.nhle.com/v1/schedule/${date}`);
+                    // Use allOrigins CORS proxy
+                    const nhlApiUrl = `https://api-web.nhle.com/v1/schedule/${date}`;
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(nhlApiUrl)}`;
+                    
+                    const response = await fetch(proxyUrl);
+                    
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
+                    
                     const data = await response.json();
                     
                     // Extract games from the gameWeek array
@@ -88,7 +94,7 @@
                     setGames(gamesList);
                 } catch (err) {
                     console.error('Fetch error:', err);
-                    setError(err.message);
+                    setError(`Failed to load games: ${err.message}`);
                 } finally {
                     setLoading(false);
                 }
@@ -200,10 +206,10 @@
                         {error && (
                             <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-center">
                                 <p className="text-red-200 font-semibold mb-2">Error loading games</p>
-                                <p className="text-red-300 text-sm">{error}</p>
+                                <p className="text-red-300 text-sm mb-3">{error}</p>
                                 <button 
                                     onClick={() => fetchGames(selectedDate)}
-                                    className="mt-3 px-4 py-2 bg-red-500/30 hover:bg-red-500/40 rounded-lg text-white"
+                                    className="px-4 py-2 bg-red-500/30 hover:bg-red-500/40 rounded-lg text-white"
                                 >
                                     Try Again
                                 </button>
