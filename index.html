@@ -213,8 +213,19 @@
                 details.summary.scoring.forEach(period => {
                     period.goals?.forEach(goal => {
                         if (goal.teamAbbrev?.default === teamAbbrev) {
+                            // Build assist string
+                            let assistText = '';
+                            if (goal.assists && goal.assists.length > 0) {
+                                const assistNames = goal.assists.map(a => {
+                                    // Use lastName if available, otherwise full name
+                                    return a.lastName?.default || a.name?.default || 'Unknown';
+                                }).join(', ');
+                                assistText = ` (${assistNames})`;
+                            }
+                            
                             goals.push({
                                 player: goal.name?.default || 'Unknown',
+                                assists: assistText,
                                 period: period.periodDescriptor?.number || 1,
                                 time: goal.timeInPeriod || ''
                             });
@@ -372,7 +383,7 @@
                                                         <div className="mt-2 text-xs text-white/70 space-y-1">
                                                             {awayGoals.map((goal, idx) => (
                                                                 <div key={idx}>
-                                                                    {goal.player} ({goal.time})
+                                                                    {goal.player}{goal.assists} ({goal.time})
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -410,7 +421,7 @@
                                                         <div className="mt-2 text-xs text-white/70 space-y-1">
                                                             {homeGoals.map((goal, idx) => (
                                                                 <div key={idx}>
-                                                                    {goal.player} ({goal.time})
+                                                                    {goal.player}{goal.assists} ({goal.time})
                                                                 </div>
                                                             ))}
                                                         </div>
