@@ -37,25 +37,20 @@
             // Get current date in New York timezone (EST is UTC-5, EDT is UTC-4)
             function getTodayInNewYork() {
                 const now = new Date();
-                // Convert to NY time by adjusting UTC time
                 const nyTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
                 const year = nyTime.getFullYear();
                 const month = String(nyTime.getMonth() + 1).padStart(2, '0');
                 const day = String(nyTime.getDate()).padStart(2, '0');
-                const dateString = `${year}-${month}-${day}`;
-                console.log('Current UTC:', now.toISOString());
-                console.log('NY Date:', dateString);
-                console.log('NY Time object:', nyTime);
-                return dateString;
+                return `${year}-${month}-${day}`;
             }
 
             const [games, setGames] = useState([]);
+            const [expandedGames, setExpandedGames] = useState({});
             const [gameDetails, setGameDetails] = useState({});
             const [selectedDate, setSelectedDate] = useState(getTodayInNewYork());
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
             const [showTeamFilter, setShowTeamFilter] = useState(false);
-            const [lastRefresh, setLastRefresh] = useState(Date.now());
             
             // Updated default teams: CHI, COL, EDM, MIN, MTL, NJD, PHI, SJS
             const [favoriteTeams, setFavoriteTeams] = useState(['CHI', 'COL', 'EDM', 'MIN', 'MTL', 'NJD', 'PHI', 'SJS']);
@@ -68,28 +63,7 @@
                 'WPG', 'WSH'
             ];
 
-            // Auto-refresh every 2 minutes if there are live games
-            useEffect(() => {
-                const hasLiveGames = games.some(game => 
-                    game.gameState === 'LIVE' || game.gameState === 'CRIT'
-                );
-                
-                if (hasLiveGames) {
-                    const interval = setInterval(() => {
-                        console.log('Auto-refreshing live games...');
-                        setLastRefresh(Date.now());
-                    }, 120000); // 2 minutes
-                    
-                    return () => clearInterval(interval);
-                }
-            }, [games]);
-
-            // Fetch when lastRefresh changes
-            useEffect(() => {
-                fetchGames(selectedDate);
-            }, [selectedDate, lastRefresh]);
-
-            // Function to get team logo URL - construct directly from abbreviation
+            // Function to get team logo URL
             function getTeamLogoUrl(teamAbbrev) {
                 return `https://assets.nhle.com/logos/nhl/svg/${teamAbbrev}_light.svg`;
             }
@@ -99,14 +73,16 @@
             }, [selectedDate]);
 
             async function fetchGameDetails(gameId) {
+                if (gameDetails[gameId]) return gameDetails[gameId]; // Use cached data
+                
                 try {
-                    // Add timestamp to prevent caching
-                    const cacheBuster = Date.now();
-                    const nhlApiUrl = `https://api-web.nhle.com/v1/gamecenter/${gameId}/landing?_=${cacheBuster}`;
+                    const nhlApiUrl = `https://api-web.nhle.com/v1/gamecenter/${gameId}/landing`;
                     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(nhlApiUrl)}`;
                     const response = await fetch(proxyUrl);
                     if (response.ok) {
-                        return await response.json();
+                        const data = await response.json();
+                        setGameDetails(prev => ({...prev, [gameId]: data}));
+                        return data;
                     }
                 } catch (err) {
                     console.error(`Failed to fetch details for game ${gameId}:`, err);
@@ -114,13 +90,25 @@
                 return null;
             }
 
+            async function toggleGameExpansion(gameId) {
+                const isExpanded = expandedGames[gameId];
+                
+                if (!isExpanded && !gameDetails[gameId]) {
+                    // Fetch details if not already loaded
+                    await fetchGameDetails(gameId);
+                }
+                
+                setExpandedGames(prev => ({
+                    ...prev,
+                    [gameId]: !isExpanded
+                }));
+            }
+
             async function fetchGames(date) {
                 setLoading(true);
                 setError(null);
                 try {
-                    // Add timestamp to prevent caching
-                    const cacheBuster = Date.now();
-                    const nhlApiUrl = `https://api-web.nhle.com/v1/schedule/${date}?_=${cacheBuster}`;
+                    const nhlApiUrl = `https://api-web.nhle.com/v1/schedule/${date}`;
                     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(nhlApiUrl)}`;
                     
                     const response = await fetch(proxyUrl);
@@ -131,7 +119,6 @@
                     
                     const data = await response.json();
                     
-                    // Extract games from the gameWeek array
                     let gamesList = [];
                     
                     if (data.gameWeek && Array.isArray(data.gameWeek)) {
@@ -145,7 +132,6 @@
                         });
                     }
                     
-                    // Apply team filter if enabled
                     if (filterEnabled && favoriteTeams.length > 0) {
                         gamesList = gamesList.filter(game => 
                             favoriteTeams.includes(game.awayTeam.abbrev) || 
@@ -154,19 +140,6 @@
                     }
                     
                     setGames(gamesList);
-                    
-                    // Fetch detailed info for live and final games
-                    const detailsMap = {};
-                    for (const game of gamesList) {
-                        if (game.gameState === 'LIVE' || game.gameState === 'CRIT' || 
-                            game.gameState === 'FINAL' || game.gameState === 'OFF') {
-                            const details = await fetchGameDetails(game.id);
-                            if (details) {
-                                detailsMap[game.id] = details;
-                            }
-                        }
-                    }
-                    setGameDetails(detailsMap);
                     
                 } catch (err) {
                     console.error('Fetch error:', err);
@@ -192,7 +165,6 @@
 
             function formatTime(dateString) {
                 const date = new Date(dateString);
-                // Format for New York timezone (America/New_York)
                 return date.toLocaleTimeString('en-US', { 
                     hour: 'numeric', 
                     minute: '2-digit',
@@ -235,23 +207,14 @@
             function getGoalScorers(details, teamAbbrev) {
                 if (!details?.summary?.scoring) return [];
                 
-                console.log('Full details for debugging:', details);
-                console.log('Scoring data:', details.summary.scoring);
-                
                 const goals = [];
                 details.summary.scoring.forEach(period => {
                     period.goals?.forEach(goal => {
-                        console.log('Goal data:', goal);
-                        console.log('Assists:', goal.assists);
-                        
                         if (goal.teamAbbrev?.default === teamAbbrev) {
-                            // Build assist string
                             let assistText = '';
                             if (goal.assists && goal.assists.length > 0) {
                                 const assistNames = goal.assists.map(a => {
-                                    console.log('Individual assist:', a);
-                                    // Use lastName if available, otherwise full name
-                                    return a.lastName?.default || a.name?.default || 'Unknown';
+                                    return a.name?.default || 'Unknown';
                                 }).join(', ');
                                 assistText = ` (${assistNames})`;
                             }
@@ -265,18 +228,15 @@
                         }
                     });
                 });
-                console.log('Processed goals:', goals);
                 return goals;
             }
 
             return (
                 <div className="min-h-screen p-4 pb-20">
                     <div className="max-w-2xl mx-auto">
-                        {/* Header */}
                         <div className="text-center mb-6 pt-4">
                             <h1 className="text-4xl font-bold text-white mb-4">🏒 NHL</h1>
                             
-                            {/* Filter Toggle */}
                             <div className="flex items-center justify-center gap-2 mb-3">
                                 <button
                                     onClick={() => setFilterEnabled(!filterEnabled)}
@@ -294,16 +254,8 @@
                                 >
                                     {showTeamFilter ? '✕' : '⚙️'}
                                 </button>
-                                <button
-                                    onClick={() => setLastRefresh(Date.now())}
-                                    className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20"
-                                    title="Refresh data"
-                                >
-                                    🔄
-                                </button>
                             </div>
 
-                            {/* Team Filter Panel */}
                             {showTeamFilter && (
                                 <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 mb-4 border border-white/20">
                                     <div className="text-white text-sm mb-2 font-semibold">Select Your Teams:</div>
@@ -333,7 +285,6 @@
                             />
                         </div>
 
-                        {/* Loading State */}
                         {loading && (
                             <div className="text-center py-12">
                                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white"></div>
@@ -341,7 +292,6 @@
                             </div>
                         )}
 
-                        {/* Error State */}
                         {error && (
                             <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-center">
                                 <p className="text-red-200 font-semibold mb-2">Error loading games</p>
@@ -355,7 +305,6 @@
                             </div>
                         )}
 
-                        {/* No Games */}
                         {!loading && !error && games.length === 0 && (
                             <div className="text-center py-12">
                                 <p className="text-white/60 text-lg">
@@ -374,39 +323,35 @@
                             </div>
                         )}
 
-                        {/* Games List */}
                         {!loading && !error && games.length > 0 && (
                             <div className="space-y-3">
                                 {games.map((game) => {
                                     const details = gameDetails[game.id];
                                     const status = getGameStatus(game, details);
                                     const isFinal = game.gameState === 'FINAL' || game.gameState === 'OFF';
-                                    const awayGoals = getGoalScorers(details, game.awayTeam.abbrev);
-                                    const homeGoals = getGoalScorers(details, game.homeTeam.abbrev);
+                                    const isExpanded = expandedGames[game.id];
+                                    const awayGoals = isExpanded ? getGoalScorers(details, game.awayTeam.abbrev) : [];
+                                    const homeGoals = isExpanded ? getGoalScorers(details, game.homeTeam.abbrev) : [];
                                     
                                     return (
                                         <div 
                                             key={game.id} 
-                                            className="game-card bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 shadow-lg"
+                                            className="game-card bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 shadow-lg cursor-pointer hover:bg-white/15 transition-colors"
+                                            onClick={() => isFinal && toggleGameExpansion(game.id)}
                                         >
-                                            {/* Status */}
                                             <div className="text-center mb-3">
                                                 <span className={`text-sm font-semibold ${status.color}`}>
                                                     {status.text}
                                                 </span>
                                             </div>
 
-                                            {/* Teams */}
                                             <div className="flex items-center justify-between gap-4">
-                                                {/* Away Team */}
                                                 <div className="flex-1 text-center">
                                                     <img 
                                                         src={getTeamLogoUrl(game.awayTeam.abbrev)}
                                                         alt={game.awayTeam.abbrev}
                                                         className="team-logo mx-auto mb-2"
-                                                        onError={(e) => {
-                                                            e.target.style.display = 'none';
-                                                        }}
+                                                        onError={(e) => e.target.style.display = 'none'}
                                                     />
                                                     <div className="text-2xl font-bold text-white mb-1">
                                                         {game.awayTeam.abbrev}
@@ -419,8 +364,7 @@
                                                             {game.awayTeam.score}
                                                         </div>
                                                     )}
-                                                    {/* Goal Scorers */}
-                                                    {awayGoals.length > 0 && (
+                                                    {isExpanded && awayGoals.length > 0 && (
                                                         <div className="mt-2 text-xs text-white/70 space-y-1">
                                                             {awayGoals.map((goal, idx) => (
                                                                 <div key={idx}>
@@ -431,20 +375,16 @@
                                                     )}
                                                 </div>
 
-                                                {/* VS or Score */}
                                                 <div className="text-white/40 text-xl font-bold">
                                                     {!isFinal ? '@' : '-'}
                                                 </div>
 
-                                                {/* Home Team */}
                                                 <div className="flex-1 text-center">
                                                     <img 
                                                         src={getTeamLogoUrl(game.homeTeam.abbrev)}
                                                         alt={game.homeTeam.abbrev}
                                                         className="team-logo mx-auto mb-2"
-                                                        onError={(e) => {
-                                                            e.target.style.display = 'none';
-                                                        }}
+                                                        onError={(e) => e.target.style.display = 'none'}
                                                     />
                                                     <div className="text-2xl font-bold text-white mb-1">
                                                         {game.homeTeam.abbrev}
@@ -457,8 +397,7 @@
                                                             {game.homeTeam.score}
                                                         </div>
                                                     )}
-                                                    {/* Goal Scorers */}
-                                                    {homeGoals.length > 0 && (
+                                                    {isExpanded && homeGoals.length > 0 && (
                                                         <div className="mt-2 text-xs text-white/70 space-y-1">
                                                             {homeGoals.map((goal, idx) => (
                                                                 <div key={idx}>
@@ -470,10 +409,15 @@
                                                 </div>
                                             </div>
 
-                                            {/* Venue */}
                                             {game.venue?.default && (
                                                 <div className="text-center mt-3 text-xs text-white/40">
                                                     {game.venue.default}
+                                                </div>
+                                            )}
+                                            
+                                            {isFinal && (
+                                                <div className="text-center mt-2 text-xs text-white/40">
+                                                    {isExpanded ? '▲ Click to collapse' : '▼ Click for goal details'}
                                                 </div>
                                             )}
                                         </div>
@@ -482,7 +426,6 @@
                             </div>
                         )}
 
-                        {/* Quick Date Navigation */}
                         <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 to-transparent p-4">
                             <div className="max-w-2xl mx-auto flex gap-2 justify-center">
                                 <button 
