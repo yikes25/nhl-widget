@@ -28,10 +28,13 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
+        // ⚙️ Replace with your Cloudflare Worker URL after setup (see instructions below)
+        const PROXY_BASE = 'https://green-art-bfe1.tal-alexander25.workers.dev
+Automatic';
+
         function NHLWidget() {
             const [games, setGames] = useState([]);
             
-            // Get today's date in local timezone
             const getTodayLocal = () => {
                 const today = new Date();
                 const year = today.getFullYear();
@@ -45,7 +48,6 @@
             const [error, setError] = useState(null);
             const [showTeamFilter, setShowTeamFilter] = useState(false);
             
-            // Load saved teams from localStorage or use defaults
             const [favoriteTeams, setFavoriteTeams] = useState(() => {
                 const saved = localStorage.getItem('nhlFavoriteTeams');
                 return saved ? JSON.parse(saved) : ['SJS', 'MTL', 'COL', 'EDM', 'NJD'];
@@ -58,9 +60,8 @@
             
             const [allureMode, setAllureMode] = useState(false);
             
-            // Allure's teams and timezone
-            const allureTeams = ['SJS', 'ANA', 'PHL'];
-            const allureTimezone = 'America/Los_Angeles'; // PT
+            const allureTeams = ['SJS', 'ANA', 'PHI'];
+            const allureTimezone = 'America/Los_Angeles';
 
             const allTeams = [
                 'ANA', 'BOS', 'BUF', 'CAR', 'CBJ', 'CGY', 'CHI', 'COL', 'DAL', 'DET',
@@ -69,12 +70,10 @@
                 'WPG', 'WSH'
             ];
 
-            // Save to localStorage whenever favorites change
             useEffect(() => {
                 localStorage.setItem('nhlFavoriteTeams', JSON.stringify(favoriteTeams));
             }, [favoriteTeams]);
 
-            // Save to localStorage whenever filter toggle changes
             useEffect(() => {
                 localStorage.setItem('nhlFilterEnabled', JSON.stringify(filterEnabled));
             }, [filterEnabled]);
@@ -87,14 +86,12 @@
                 setLoading(true);
                 setError(null);
                 try {
-                    const apiUrl = `https://api-web.nhle.com/v1/schedule/${date}`;
-                    const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`);
+                    const response = await fetch(`${PROXY_BASE}/v1/schedule/${date}`);
                     if (!response.ok) throw new Error('Failed to fetch games');
                     const data = await response.json();
                     
                     let gamesList = data.gameWeek?.[0]?.games || [];
                     
-                    // Apply team filter
                     const teamsToFilter = allureMode ? allureTeams : favoriteTeams;
                     
                     if ((allureMode || filterEnabled) && teamsToFilter.length > 0) {
@@ -120,7 +117,6 @@
                 }
             }
 
-            // Re-fetch when filter changes
             useEffect(() => {
                 if (games.length > 0 || !loading) {
                     fetchGames(selectedDate);
@@ -154,11 +150,9 @@
             return (
                 <div className="min-h-screen p-4 pb-20">
                     <div className="max-w-2xl mx-auto">
-                        {/* Header */}
                         <div className="text-center mb-6 pt-4">
                             <h1 className="text-4xl font-bold text-white mb-4">🏒 NHL</h1>
                             
-                            {/* Filter Toggle */}
                             <div className="flex items-center justify-center gap-2 mb-3">
                                 <button
                                     onClick={() => {
@@ -206,7 +200,6 @@
                                 </button>
                             </div>
 
-                            {/* Team Filter Panel */}
                             {showTeamFilter && (
                                 <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 mb-4 border border-white/20">
                                     <div className="text-white text-sm mb-2 font-semibold">Select Your Teams:</div>
@@ -236,7 +229,6 @@
                             />
                         </div>
 
-                        {/* Loading State */}
                         {loading && (
                             <div className="text-center py-12">
                                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white"></div>
@@ -244,19 +236,17 @@
                             </div>
                         )}
 
-                        {/* Error State */}
                         {error && (
                             <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-center">
                                 <p className="text-red-200">{error}</p>
                             </div>
                         )}
 
-                        {/* No Games */}
                         {!loading && !error && games.length === 0 && (
                             <div className="text-center py-12">
                                 <p className="text-white/60 text-lg">
                                     {allureMode
-                                        ? 'No Sharks or Ducks games today'
+                                        ? 'No Sharks, Ducks, or Flyers games today'
                                         : filterEnabled 
                                             ? 'No games for your teams today' 
                                             : 'No games scheduled'}
@@ -275,7 +265,6 @@
                             </div>
                         )}
 
-                        {/* Games List */}
                         {!loading && !error && games.length > 0 && (
                             <div className="space-y-3">
                                 {games.map((game) => {
@@ -287,16 +276,13 @@
                                             key={game.id} 
                                             className="game-card bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 shadow-lg"
                                         >
-                                            {/* Status */}
                                             <div className="text-center mb-3">
                                                 <span className={`text-sm font-semibold ${status.color}`}>
                                                     {status.text}
                                                 </span>
                                             </div>
 
-                                            {/* Teams */}
                                             <div className="flex items-center justify-between gap-4">
-                                                {/* Away Team */}
                                                 <div className="flex-1 text-center">
                                                     <img 
                                                         src={`https://assets.nhle.com/logos/nhl/svg/${game.awayTeam.abbrev}_light.svg`}
@@ -317,12 +303,10 @@
                                                     )}
                                                 </div>
 
-                                                {/* VS or Score */}
                                                 <div className="text-white/40 text-xl font-bold">
                                                     {!isFinal ? '@' : '-'}
                                                 </div>
 
-                                                {/* Home Team */}
                                                 <div className="flex-1 text-center">
                                                     <img 
                                                         src={`https://assets.nhle.com/logos/nhl/svg/${game.homeTeam.abbrev}_light.svg`}
@@ -344,7 +328,6 @@
                                                 </div>
                                             </div>
 
-                                            {/* Venue */}
                                             {game.venue?.default && (
                                                 <div className="text-center mt-3 text-xs text-white/40">
                                                     {game.venue.default}
@@ -356,7 +339,6 @@
                             </div>
                         )}
 
-                        {/* Quick Date Navigation */}
                         <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 to-transparent p-4">
                             <div className="max-w-2xl mx-auto flex gap-2 justify-center">
                                 <button 
