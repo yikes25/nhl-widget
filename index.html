@@ -59,7 +59,7 @@
             const [allureMode, setAllureMode] = useState(false);
             
             // Allure's teams and timezone
-            const allureTeams = ['SJS', 'ANA', 'PHI'];
+            const allureTeams = ['SJS', 'ANA'];
             const allureTimezone = 'America/Los_Angeles'; // PT
 
             const allTeams = [
@@ -87,8 +87,8 @@
                 setLoading(true);
                 setError(null);
                 try {
-                    // Using CORS proxy to avoid CORS issues
-                    const response = await fetch(`https://corsproxy.io/?https://api-web.nhle.com/v1/schedule/${date}`);
+                    const apiUrl = `https://api-web.nhle.com/v1/schedule/${date}`;
+                    const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`);
                     if (!response.ok) throw new Error('Failed to fetch games');
                     const data = await response.json();
                     
