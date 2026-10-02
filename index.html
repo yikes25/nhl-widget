@@ -1,380 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="NHL Games">
-    <title>NHL Games Today</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            overscroll-behavior: none;
-            -webkit-touch-callout: none;
-            user-select: none;
-        }
-        .game-card {
-            backdrop-filter: blur(10px);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NHL">
+<title>NHL Games</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;background:linear-gradient(135deg,#1e3a8a,#0f172a 50%,#111827);background-attachment:fixed;-webkit-user-select:none;user-select:none}
+#app{max-width:640px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom))}
+h1{text-align:center;font-size:36px;margin:8px 0 14px}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+button,input{font:inherit;color:#fff;border-radius:10px;padding:9px 14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1)}
+button{font-weight:600;cursor:pointer}
+button.on{background:#3b82f6;border-color:#3b82f6}
+button.on.allure{background:#a855f7;border-color:#a855f7}
+button:not(.on){color:rgba(255,255,255,.65)}
+input[type=date]{color-scheme:dark}
+.panel{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:12px;margin-bottom:12px}
+.panel .row{margin:8px 0 0}
+.panel button{padding:5px 10px;font-size:14px}
+.msg{text-align:center;padding:40px 0;color:rgba(255,255,255,.6);font-size:18px}
+.msg a,.msg button{color:#60a5fa;background:none;border:0;text-decoration:underline;margin-top:10px}
+.card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.status{text-align:center;font-size:14px;font-weight:600;margin-bottom:10px;color:#93c5fd}
+.status.live{color:#f87171;animation:pulse 1.5s infinite}
+.status.final{color:#9ca3af}
+.teams{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.team{flex:1;text-align:center}
+.team img{width:56px;height:56px;object-fit:contain}
+.abbr{font-size:22px;font-weight:700}
+.city{font-size:13px;color:rgba(255,255,255,.6)}
+.score{font-size:32px;font-weight:700;margin-top:4px}
+.sep{color:rgba(255,255,255,.4);font-size:20px;font-weight:700}
+.venue{text-align:center;font-size:12px;color:rgba(255,255,255,.4);margin-top:10px}
+.nav{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:center;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to top,#0f172a,transparent)}
+.spin{display:inline-block;width:44px;height:44px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{opacity:.4}}
+</style>
 </head>
-<body class="bg-gradient-to-br from-blue-900 via-slate-900 to-gray-900 min-h-screen">
-    <div id="root"></div>
+<body>
+<div id="app"></div>
+<script>
+const TEAMS=['ANA','BOS','BUF','CAR','CBJ','CGY','CHI','COL','DAL','DET','EDM','FLA','LAK','MIN','MTL','NJD','NSH','NYI','NYR','OTT','PHI','PIT','SEA','SJS','STL','TBL','TOR','UTA','VAN','VGK','WPG','WSH'];
+const DEFAULT_FAVS=['SJS','MTL','COL','EDM','NJD'];
+const ALLURE=['SJS','ANA'], ALLURE_TZ='America/Los_Angeles';
+const PROXIES=[u=>'https://corsproxy.io/?'+u, u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)];
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; // local date, not UTC
+const shift=(s,n)=>{const [y,m,d]=s.split('-').map(Number);return iso(new Date(y,m-1,d+n))};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-        // ⚙️ Replace with your Cloudflare Worker URL after setup (see instructions below)
-        const PROXY_BASE = 'https://green-art-bfe1.tal-alexander25.workers.dev
-Automatic';
+const S={
+  date:iso(new Date()),
+  mode:location.hash==='#allure'?'allure':store.get('mode','mine'), // mine | allure | all
+  favs:store.get('favs',DEFAULT_FAVS),
+  panel:false, games:[], loading:true, error:null
+};
 
-        function NHLWidget() {
-            const [games, setGames] = useState([]);
-            
-            const getTodayLocal = () => {
-                const today = new Date();
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const day = String(today.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            };
-            
-            const [selectedDate, setSelectedDate] = useState(getTodayLocal());
-            const [loading, setLoading] = useState(true);
-            const [error, setError] = useState(null);
-            const [showTeamFilter, setShowTeamFilter] = useState(false);
-            
-            const [favoriteTeams, setFavoriteTeams] = useState(() => {
-                const saved = localStorage.getItem('nhlFavoriteTeams');
-                return saved ? JSON.parse(saved) : ['SJS', 'MTL', 'COL', 'EDM', 'NJD'];
-            });
-            
-            const [filterEnabled, setFilterEnabled] = useState(() => {
-                const saved = localStorage.getItem('nhlFilterEnabled');
-                return saved ? JSON.parse(saved) : true;
-            });
-            
-            const [allureMode, setAllureMode] = useState(false);
-            
-            const allureTeams = ['SJS', 'ANA', 'PHI'];
-            const allureTimezone = 'America/Los_Angeles';
+function fmtTime(utc){
+  const o={hour:'numeric',minute:'2-digit',timeZoneName:'short'};
+  if(S.mode==='allure')o.timeZone=ALLURE_TZ;
+  return new Date(utc).toLocaleTimeString('en-US',o);
+}
 
-            const allTeams = [
-                'ANA', 'BOS', 'BUF', 'CAR', 'CBJ', 'CGY', 'CHI', 'COL', 'DAL', 'DET',
-                'EDM', 'FLA', 'LAK', 'MIN', 'MTL', 'NJD', 'NSH', 'NYI', 'NYR', 'OTT',
-                'PHI', 'PIT', 'SEA', 'SJS', 'STL', 'TBL', 'TOR', 'UTA', 'VAN', 'VGK',
-                'WPG', 'WSH'
-            ];
+let reqId=0;
+async function load(){
+  const id=++reqId;
+  S.loading=true;S.error=null;render();
+  const url=`https://api-web.nhle.com/v1/schedule/${S.date}`;
+  let data=null,err;
+  for(const p of PROXIES){
+    try{const r=await fetch(p(url));if(!r.ok)throw new Error('HTTP '+r.status);data=await r.json();break}
+    catch(e){err=e}
+  }
+  if(id!==reqId)return;
+  if(!data){S.error=err?err.message:'Failed to fetch';S.games=[]}
+  else{
+    const day=(data.gameWeek||[]).find(d=>d.date===S.date);
+    S.games=day?day.games:[];
+  }
+  S.loading=false;render();
+}
 
-            useEffect(() => {
-                localStorage.setItem('nhlFavoriteTeams', JSON.stringify(favoriteTeams));
-            }, [favoriteTeams]);
+function visible(){
+  const teams=S.mode==='allure'?ALLURE:S.mode==='mine'?S.favs:null;
+  if(!teams||!teams.length)return S.games;
+  return S.games.filter(g=>teams.includes(g.awayTeam.abbrev)||teams.includes(g.homeTeam.abbrev));
+}
 
-            useEffect(() => {
-                localStorage.setItem('nhlFilterEnabled', JSON.stringify(filterEnabled));
-            }, [filterEnabled]);
+function status(g){
+  const s=g.gameState;
+  if(s==='LIVE'||s==='CRIT')return['LIVE','live'];
+  if(s==='FINAL'||s==='OFF')return['FINAL','final'];
+  return[fmtTime(g.startTimeUTC),''];
+}
 
-            useEffect(() => {
-                fetchGames(selectedDate);
-            }, [selectedDate]);
+function teamHtml(t,showScore){
+  const logo=t.darkLogo||t.logo||`https://assets.nhle.com/logos/nhl/svg/${t.abbrev}_dark.svg`;
+  return `<div class="team"><img src="${esc(logo)}" alt="" onerror="this.style.visibility='hidden'">
+    <div class="abbr">${esc(t.abbrev)}</div><div class="city">${esc(t.placeName?.default)}</div>
+    ${showScore&&t.score!=null?`<div class="score">${t.score}</div>`:''}</div>`;
+}
 
-            async function fetchGames(date) {
-                setLoading(true);
-                setError(null);
-                try {
-                    const response = await fetch(`${PROXY_BASE}/v1/schedule/${date}`);
-                    if (!response.ok) throw new Error('Failed to fetch games');
-                    const data = await response.json();
-                    
-                    let gamesList = data.gameWeek?.[0]?.games || [];
-                    
-                    const teamsToFilter = allureMode ? allureTeams : favoriteTeams;
-                    
-                    if ((allureMode || filterEnabled) && teamsToFilter.length > 0) {
-                        gamesList = gamesList.filter(game => 
-                            teamsToFilter.includes(game.awayTeam.abbrev) || 
-                            teamsToFilter.includes(game.homeTeam.abbrev)
-                        );
-                    }
-                    
-                    setGames(gamesList);
-                } catch (err) {
-                    setError(err.message);
-                } finally {
-                    setLoading(false);
-                }
-            }
+function render(){
+  const m=S.mode, games=visible();
+  const b=(act,label,on,cls='')=>`<button data-act="${act}" class="${on?'on':''} ${cls}">${label}</button>`;
+  let h=`<h1>🏒 NHL</h1><div class="row">
+    ${b('mine',m==='mine'?`My Teams (${S.favs.length})`:'My Teams',m==='mine')}
+    ${b('allure','Allure',m==='allure','allure')}
+    ${b('all','All Teams',m==='all')}
+    ${m!=='allure'?`<button data-act="panel">${S.panel?'✕':'⚙️'}</button>`:''}</div>`;
+  if(S.panel&&m!=='allure'){
+    h+=`<div class="panel"><b style="font-size:14px">Select your teams:</b><div class="row">
+      ${TEAMS.map(t=>b('team:'+t,t,S.favs.includes(t))).join('')}</div></div>`;
+  }
+  h+=`<div class="row"><input type="date" id="date" value="${S.date}"></div>`;
+  if(S.loading)h+=`<div class="msg"><div class="spin"></div><p>Loading games...</p></div>`;
+  else if(S.error)h+=`<div class="msg">Couldn't load games<br><small>${esc(S.error)}</small><br><button data-act="retry">Try again</button></div>`;
+  else if(!games.length){
+    const t=m==='allure'?'No Sharks or Ducks games':m==='mine'?'No games for your teams':'No games scheduled';
+    h+=`<div class="msg">${t}${m!=='all'?`<br><button data-act="all">View all games</button>`:''}</div>`;
+  }else{
+    h+=games.map(g=>{
+      const [txt,cls]=status(g), started=cls==='live'||cls==='final';
+      return `<div class="card"><div class="status ${cls}">${esc(txt)}</div>
+        <div class="teams">${teamHtml(g.awayTeam,started)}<div class="sep">${started?'-':'@'}</div>${teamHtml(g.homeTeam,started)}</div>
+        ${g.venue?.default?`<div class="venue">${esc(g.venue.default)}</div>`:''}</div>`;
+    }).join('');
+  }
+  h+=`<div class="nav"><button data-act="prev">← Yesterday</button><button class="on" data-act="today">Today</button><button data-act="next">Tomorrow →</button></div>`;
+  document.getElementById('app').innerHTML=h;
+}
 
-            function toggleTeam(teamAbbrev) {
-                if (favoriteTeams.includes(teamAbbrev)) {
-                    setFavoriteTeams(favoriteTeams.filter(t => t !== teamAbbrev));
-                } else {
-                    setFavoriteTeams([...favoriteTeams, teamAbbrev]);
-                }
-            }
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;
+  const a=el.dataset.act;
+  if(a==='mine'||a==='all'||a==='allure'){S.mode=a;store.set('mode',a);render()}
+  else if(a==='panel'){S.panel=!S.panel;render()}
+  else if(a.startsWith('team:')){
+    const t=a.slice(5);
+    S.favs=S.favs.includes(t)?S.favs.filter(x=>x!==t):[...S.favs,t];
+    store.set('favs',S.favs);render();
+  }
+  else if(a==='prev'){S.date=shift(S.date,-1);load()}
+  else if(a==='next'){S.date=shift(S.date,1);load()}
+  else if(a==='today'){S.date=iso(new Date());load()}
+  else if(a==='retry')load();
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='date'&&e.target.value){S.date=e.target.value;load()}
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 
-            useEffect(() => {
-                if (games.length > 0 || !loading) {
-                    fetchGames(selectedDate);
-                }
-            }, [filterEnabled, favoriteTeams, allureMode]);
-
-            function formatTime(dateString) {
-                const date = new Date(dateString);
-                const timezone = allureMode ? allureTimezone : undefined;
-                return date.toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    timeZoneName: 'short',
-                    timeZone: timezone
-                });
-            }
-
-            function getGameStatus(game) {
-                const state = game.gameState;
-                if (state === 'FUT' || state === 'PRE') {
-                    return { text: formatTime(game.startTimeUTC), color: 'text-blue-300' };
-                } else if (state === 'LIVE' || state === 'CRIT') {
-                    return { text: 'LIVE', color: 'text-red-400 animate-pulse' };
-                } else if (state === 'FINAL' || state === 'OFF') {
-                    return { text: 'FINAL', color: 'text-gray-400' };
-                } else {
-                    return { text: state, color: 'text-gray-300' };
-                }
-            }
-
-            return (
-                <div className="min-h-screen p-4 pb-20">
-                    <div className="max-w-2xl mx-auto">
-                        <div className="text-center mb-6 pt-4">
-                            <h1 className="text-4xl font-bold text-white mb-4">🏒 NHL</h1>
-                            
-                            <div className="flex items-center justify-center gap-2 mb-3">
-                                <button
-                                    onClick={() => {
-                                        setAllureMode(false);
-                                        setFilterEnabled(!filterEnabled);
-                                    }}
-                                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                                        !allureMode && filterEnabled
-                                            ? 'bg-blue-500 text-white' 
-                                            : 'bg-white/10 text-white/60 border border-white/20'
-                                    }`}
-                                >
-                                    {filterEnabled && !allureMode ? `My Teams (${favoriteTeams.length})` : 'My Teams'}
-                                </button>
-                                <button
-                                    onClick={() => setAllureMode(!allureMode)}
-                                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                                        allureMode
-                                            ? 'bg-purple-500 text-white' 
-                                            : 'bg-white/10 text-white/60 border border-white/20'
-                                    }`}
-                                >
-                                    Allure
-                                </button>
-                                {!allureMode && (
-                                    <button
-                                        onClick={() => {
-                                            setAllureMode(false);
-                                            setFilterEnabled(false);
-                                        }}
-                                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                                            !filterEnabled && !allureMode
-                                                ? 'bg-blue-500 text-white' 
-                                                : 'bg-white/10 text-white/60 border border-white/20'
-                                        }`}
-                                    >
-                                        All Teams
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => setShowTeamFilter(!showTeamFilter)}
-                                    className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20"
-                                >
-                                    {showTeamFilter ? '✕' : '⚙️'}
-                                </button>
-                            </div>
-
-                            {showTeamFilter && (
-                                <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 mb-4 border border-white/20">
-                                    <div className="text-white text-sm mb-2 font-semibold">Select Your Teams:</div>
-                                    <div className="flex flex-wrap gap-2 justify-center">
-                                        {allTeams.map(team => (
-                                            <button
-                                                key={team}
-                                                onClick={() => toggleTeam(team)}
-                                                className={`px-3 py-1 rounded-lg text-sm font-semibold transition-all ${
-                                                    favoriteTeams.includes(team)
-                                                        ? 'bg-blue-500 text-white'
-                                                        : 'bg-white/10 text-white/60 hover:bg-white/20'
-                                                }`}
-                                            >
-                                                {team}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            <input 
-                                type="date" 
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            />
-                        </div>
-
-                        {loading && (
-                            <div className="text-center py-12">
-                                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white"></div>
-                                <p className="text-white/60 mt-4">Loading games...</p>
-                            </div>
-                        )}
-
-                        {error && (
-                            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-center">
-                                <p className="text-red-200">{error}</p>
-                            </div>
-                        )}
-
-                        {!loading && !error && games.length === 0 && (
-                            <div className="text-center py-12">
-                                <p className="text-white/60 text-lg">
-                                    {allureMode
-                                        ? 'No Sharks, Ducks, or Flyers games today'
-                                        : filterEnabled 
-                                            ? 'No games for your teams today' 
-                                            : 'No games scheduled'}
-                                </p>
-                                {(filterEnabled || allureMode) && (
-                                    <button
-                                        onClick={() => {
-                                            setFilterEnabled(false);
-                                            setAllureMode(false);
-                                        }}
-                                        className="mt-4 text-blue-400 underline"
-                                    >
-                                        View all games
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
-                        {!loading && !error && games.length > 0 && (
-                            <div className="space-y-3">
-                                {games.map((game) => {
-                                    const status = getGameStatus(game);
-                                    const isFinal = game.gameState === 'FINAL' || game.gameState === 'OFF';
-                                    
-                                    return (
-                                        <div 
-                                            key={game.id} 
-                                            className="game-card bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 shadow-lg"
-                                        >
-                                            <div className="text-center mb-3">
-                                                <span className={`text-sm font-semibold ${status.color}`}>
-                                                    {status.text}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-center justify-between gap-4">
-                                                <div className="flex-1 text-center">
-                                                    <img 
-                                                        src={`https://assets.nhle.com/logos/nhl/svg/${game.awayTeam.abbrev}_light.svg`}
-                                                        alt={game.awayTeam.abbrev}
-                                                        className="w-16 h-16 mx-auto mb-2"
-                                                        onError={(e) => e.target.style.display = 'none'}
-                                                    />
-                                                    <div className="text-xl font-bold text-white mb-1">
-                                                        {game.awayTeam.abbrev}
-                                                    </div>
-                                                    <div className="text-xs text-white/60">
-                                                        {game.awayTeam.placeName?.default}
-                                                    </div>
-                                                    {(isFinal || game.gameState === 'LIVE' || game.gameState === 'CRIT') && (
-                                                        <div className="text-3xl font-bold text-white mt-2">
-                                                            {game.awayTeam.score}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="text-white/40 text-xl font-bold">
-                                                    {!isFinal ? '@' : '-'}
-                                                </div>
-
-                                                <div className="flex-1 text-center">
-                                                    <img 
-                                                        src={`https://assets.nhle.com/logos/nhl/svg/${game.homeTeam.abbrev}_light.svg`}
-                                                        alt={game.homeTeam.abbrev}
-                                                        className="w-16 h-16 mx-auto mb-2"
-                                                        onError={(e) => e.target.style.display = 'none'}
-                                                    />
-                                                    <div className="text-xl font-bold text-white mb-1">
-                                                        {game.homeTeam.abbrev}
-                                                    </div>
-                                                    <div className="text-xs text-white/60">
-                                                        {game.homeTeam.placeName?.default}
-                                                    </div>
-                                                    {(isFinal || game.gameState === 'LIVE' || game.gameState === 'CRIT') && (
-                                                        <div className="text-3xl font-bold text-white mt-2">
-                                                            {game.homeTeam.score}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {game.venue?.default && (
-                                                <div className="text-center mt-3 text-xs text-white/40">
-                                                    {game.venue.default}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 to-transparent p-4">
-                            <div className="max-w-2xl mx-auto flex gap-2 justify-center">
-                                <button 
-                                    onClick={() => {
-                                        const date = new Date(selectedDate);
-                                        date.setDate(date.getDate() - 1);
-                                        setSelectedDate(date.toISOString().split('T')[0]);
-                                    }}
-                                    className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg border border-white/20 font-semibold"
-                                >
-                                    ← Yesterday
-                                </button>
-                                <button 
-                                    onClick={() => setSelectedDate(getTodayLocal())}
-                                    className="bg-blue-500/80 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold"
-                                >
-                                    Today
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        const date = new Date(selectedDate);
-                                        date.setDate(date.getDate() + 1);
-                                        setSelectedDate(date.toISOString().split('T')[0]);
-                                    }}
-                                    className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg border border-white/20 font-semibold"
-                                >
-                                    Tomorrow →
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
-        ReactDOM.render(<NHLWidget />, document.getElementById('root'));
-    </script>
+load();
+</script>
 </body>
 </html>
