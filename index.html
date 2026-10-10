@@ -51,6 +51,19 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .acts{display:flex;gap:8px;margin-top:16px}
 .acts button{flex:1;padding:12px;border-radius:12px;background:rgba(255,255,255,.12);font-weight:600;font-size:16px}
 .acts .go{background:#2f6df6}
+.card[data-x]{cursor:pointer}
+.det{margin-top:12px;cursor:default;font-size:14px}
+.det table{width:100%;border-collapse:collapse;text-align:center}
+.det td{padding:6px 0;border-top:1px solid rgba(255,255,255,.12)}
+.det .hd td{border:0;padding:0;font-size:12px;color:#b9c6e0}
+.det .l{text-align:left;font-weight:600}
+.det .r{text-align:right}
+.det .h{font-size:12px;color:#b9c6e0;letter-spacing:.04em;margin:12px 0 4px}
+.g{padding:6px 0;border-top:1px solid rgba(255,255,255,.12);line-height:1.4}
+.g i{font-style:normal;opacity:.65}
+.more{background:none;color:#8fb2ff;padding:8px 0;font-size:14px}
+.det .e{text-align:center;opacity:.8;padding:8px}
+.det .spin{width:24px;height:24px;border-width:3px;margin:14px auto}
 </style>
 </head>
 <body>
@@ -131,6 +144,54 @@ function team(t){
     '<div class="abbr">'+esc(t.abbrev)+'</div><div class="city">'+esc(t.placeName&&t.placeName.default)+'</div></div>';
 }
 
+var open={},cache={},tok={};
+function J(p){return fetch(WORKER+p).then(function(r){if(!r.ok)throw 0;return r.json()}).catch(function(){return null})}
+function nm(p){return p?((p.lastName&&p.lastName.default)||(p.name&&p.name.default)||''):''}
+function ab(t){return t?(t.default||t):''}
+function pct(v){return v==null?'–':(v>=1?'1.000':v.toFixed(3).slice(1))}
+function plab(p){var n=p.periodDescriptor||{},t=n.periodType;return t==='SO'?'SO':t==='OT'?(n.number>4?'OT'+(n.number-3):'OT'):String(n.number)}
+function ord(p){var n=p.periodDescriptor||{},t=n.periodType;return t==='SO'?'SO':t==='OT'?'OT':n.number+['','st','nd','rd'][n.number]}
+function build(g,L,B){
+  var a=g.awayTeam.abbrev,h=g.homeTeam.abbrev,s=(L&&L.summary)||{},ls=s.linescore||{},per=ls.byPeriod||[],tot=ls.totals||{},out='';
+  function sog(k){var t=(L&&L[k+'Team'])||{},b=(B&&B[k+'Team'])||{};return t.sog!=null?t.sog:b.sog!=null?b.sog:'–'}
+  if(per.length){
+    out+='<table><tr class="hd"><td></td>'+per.map(function(p){return'<td>'+plab(p)+'</td>'}).join('')+'<td>SOG</td><td>T</td></tr>';
+    [['away',a],['home',h]].forEach(function(x){out+='<tr><td class="l">'+esc(x[1])+'</td>'+per.map(function(p){return'<td>'+(p[x[0]]!=null?p[x[0]]:0)+'</td>'}).join('')+'<td>'+sog(x[0])+'</td><td><b>'+(tot[x[0]]!=null?tot[x[0]]:g[x[0]+'Team'].score)+'</b></td></tr>'});
+    out+='</table>';
+  }
+  var gl=[];(s.scoring||[]).forEach(function(p){(p.goals||[]).forEach(function(x){gl.push([ord(p),x])})});
+  if(gl.length){
+    out+='<div class="h">GOALS</div>';
+    gl.forEach(function(e,i){var x=e[1],as=(x.assists||[]).map(nm).join(', ');
+      out+='<div class="g"'+(i>3?' hidden':'')+'><i>'+e[0]+' '+esc(x.timeInPeriod)+'</i> <b>'+esc(ab(x.teamAbbrev))+'</b> '+esc(nm(x))+(x.goalsToDate!=null?' ('+x.goalsToDate+')':'')+'<br><i>'+(as?'A: '+esc(as):'Unassisted')+'</i></div>'});
+    if(gl.length>4)out+='<button class="more">+ '+(gl.length-4)+' more goals</button>';
+  }
+  var gs=[];
+  [['away',a],['home',h]].forEach(function(x){
+    var t=B&&B.playerByGameStats&&B.playerByGameStats[x[0]+'Team'];
+    ((t&&t.goalies)||[]).forEach(function(q){
+      var sa=q.shotsAgainst,sv=q.saves;
+      if(q.saveShotsAgainst){var m=String(q.saveShotsAgainst).split('/');sv=+m[0];sa=+m[1]}
+      if(q.toi==='00:00'||sa==null)return;
+      gs.push('<tr><td class="l" style="font-weight:400">'+esc(nm(q))+' <span style="opacity:.6">'+esc(x[1])+(q.decision?' · '+esc(q.decision):'')+'</span></td><td class="r">'+sv+'/'+sa+'</td><td class="r">'+pct(q.savePctg!=null?q.savePctg:(sa?sv/sa:null))+'</td></tr>');
+    });
+  });
+  if(gs.length)out+='<div class="h">GOALIES</div><table><tr class="hd"><td></td><td class="r">SV/SA</td><td class="r">SV%</td></tr>'+gs.join('')+'</table>';
+  return out||'<div class="e">No details yet</div>';
+}
+function fill(g){
+  var id=g.id,el=$('d'+id);if(!el)return;
+  var c=cache[id],live=g.gameState==='LIVE'||g.gameState==='CRIT';
+  if(c&&(!live||Date.now()-c.t<20000)){el.innerHTML=c.h;return}
+  var t=tok[id]=(tok[id]||0)+1;
+  el.innerHTML='<div class="spin"></div>';
+  Promise.all([J('/v1/gamecenter/'+id+'/landing'),J('/v1/gamecenter/'+id+'/boxscore')]).then(function(r){
+    if(t!==tok[id])return;
+    var e=$('d'+id);if(!e)return;
+    if(!r[0]&&!r[1]){e.innerHTML='<div class="e">Couldn’t load details.<br><button class="more" data-r="'+id+'">Try again</button></div>';return}
+    var h=build(g,r[0],r[1]);cache[id]={t:Date.now(),h:h};e.innerHTML=h;
+  });
+}
 function card(g){
   var a=g.awayTeam,h=g.homeTeam,s=g.gameState,mid,stat;
   var live=s==='LIVE'||s==='CRIT',fin=s==='FINAL'||s==='OFF';
@@ -142,7 +203,8 @@ function card(g){
     stat=g.gameScheduleState&&g.gameScheduleState!=='OK'?esc(g.gameScheduleState):
       new Date(g.startTimeUTC).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
   }
-  return '<div class="card"><div class="status">'+stat+'</div><div class="row">'+team(a)+mid+team(h)+'</div></div>';
+  var ex=live||fin,op=ex&&open[g.id];
+  return '<div class="card" data-id="'+g.id+'"'+(ex?' data-x="1"':'')+'><div class="status">'+stat+(ex?(op?' ▴':' ▾'):'')+'</div><div class="row">'+team(a)+mid+team(h)+'</div>'+(op?'<div class="det" id="d'+g.id+'"></div>':'')+'</div>';
 }
 
 function render(){
@@ -163,6 +225,7 @@ function render(){
     return;
   }
   $('list').innerHTML=list.map(card).join('');
+  list.forEach(function(g){if(open[g.id])fill(g)});
 }
 
 function setMode(m){st.mode=m;save();render()}
@@ -174,6 +237,18 @@ function buildChips(){
   }).join('');
 }
 
+$('list').onclick=function(e){
+  var m=e.target.closest('.more');
+  if(m){
+    var r=m.getAttribute('data-r');
+    if(r){var gg=games.filter(function(g){return String(g.id)===r})[0];if(gg)fill(gg)}
+    else{[].forEach.call(m.parentNode.querySelectorAll('.g[hidden]'),function(x){x.hidden=false});m.remove()}
+    return;
+  }
+  if(e.target.closest('.det'))return;
+  var c=e.target.closest('.card[data-x]');if(!c)return;
+  var id=c.getAttribute('data-id');open[id]=!open[id];render();
+};
 $('mMy').onclick=function(){setMode('my')};
 $('mAll').onclick=function(){setMode('all')};
 $('gear').onclick=function(){buildChips();$('sheet').hidden=false};
