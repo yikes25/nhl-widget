@@ -1,167 +1,201 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="NHL">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NHL Today">
+<meta name="theme-color" content="#0a1730">
 <title>NHL Games</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;background:linear-gradient(135deg,#1e3a8a,#0f172a 50%,#111827);background-attachment:fixed;-webkit-user-select:none;user-select:none}
-#app{max-width:640px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom))}
-h1{text-align:center;font-size:36px;margin:8px 0 14px}
-.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
-button,input{font:inherit;color:#fff;border-radius:10px;padding:9px 14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1)}
-button{font-weight:600;cursor:pointer}
-button.on{background:#3b82f6;border-color:#3b82f6}
-button.on.allure{background:#a855f7;border-color:#a855f7}
-button:not(.on){color:rgba(255,255,255,.65)}
-input[type=date]{color-scheme:dark}
-.panel{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:12px;margin-bottom:12px}
-.panel .row{margin:8px 0 0}
-.panel button{padding:5px 10px;font-size:14px}
-.msg{text-align:center;padding:40px 0;color:rgba(255,255,255,.6);font-size:18px}
-.msg a,.msg button{color:#60a5fa;background:none;border:0;text-decoration:underline;margin-top:10px}
-.card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
-.status{text-align:center;font-size:14px;font-weight:600;margin-bottom:10px;color:#93c5fd}
-.status.live{color:#f87171;animation:pulse 1.5s infinite}
-.status.final{color:#9ca3af}
-.teams{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.team{flex:1;text-align:center}
-.team img{width:56px;height:56px;object-fit:contain}
-.abbr{font-size:22px;font-weight:700}
-.city{font-size:13px;color:rgba(255,255,255,.6)}
-.score{font-size:32px;font-weight:700;margin-top:4px}
-.sep{color:rgba(255,255,255,.4);font-size:20px;font-weight:700}
-.venue{text-align:center;font-size:12px;color:rgba(255,255,255,.4);margin-top:10px}
-.nav{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:center;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to top,#0f172a,transparent)}
-.spin{display:inline-block;width:44px;height:44px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes pulse{50%{opacity:.4}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;color:#fff;background:#0a1730 linear-gradient(160deg,#0f2a5c 0%,#0a1730 55%,#050b1a 100%) fixed;
+padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 96px);-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.top{display:flex;gap:8px;max-width:560px;margin:0 auto 14px}
+.seg{flex:1;padding:12px 8px;border-radius:14px;background:rgba(255,255,255,.1);font-weight:600;font-size:16px}
+.seg.on{background:#2f6df6}
+.gear{width:50px;border-radius:14px;background:rgba(255,255,255,.1);font-size:20px}
+#dateLabel{max-width:560px;margin:0 auto 12px;font-size:15px;opacity:.7;text-align:center}
+#list{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.card{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:14px 12px 16px}
+.status{text-align:center;font-size:14px;font-weight:600;opacity:.8;margin-bottom:8px;letter-spacing:.04em}
+.live{color:#ff4d4d;opacity:1;animation:pulse 1.2s ease-in-out infinite}
+.row{display:flex;align-items:center}
+.team{flex:1;text-align:center;min-width:0}
+.team img{width:64px;height:64px;object-fit:contain;display:block;margin:0 auto 4px}
+.abbr{font-size:24px;font-weight:700}
+.city{font-size:14px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mid{width:84px;text-align:center;font-size:30px;font-weight:700;flex:none}
+.mid.at{font-size:26px;opacity:.6}
+@keyframes pulse{50%{opacity:.35}}
+.msg{text-align:center;padding:48px 16px;font-size:18px;opacity:.9}
+.msg button,.msg a{margin-top:14px;display:inline-block;padding:11px 20px;border-radius:12px;background:#2f6df6;color:#fff;font-size:16px;font-weight:600;text-decoration:none}
+.spin{width:36px;height:36px;margin:60px auto;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:center;padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);background:rgba(8,16,36,.85);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,.1)}
+.bar>*{flex:1;max-width:150px;min-width:0;padding:12px 4px;border-radius:12px;background:rgba(255,255,255,.1);font-size:15px;font-weight:600;text-align:center}
+.bar .on{background:#2f6df6}
+.bar input{color:#fff;border:0;font:inherit;font-size:15px;color-scheme:dark;width:100%}
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;z-index:5}
+#sheet[hidden]{display:none}
+.panel{width:100%;max-width:560px;margin:0 auto;max-height:85%;overflow:auto;background:#10234a;border-radius:22px 22px 0 0;padding:16px 14px calc(env(safe-area-inset-bottom) + 16px)}
+.panel h2{margin:0 0 4px;font-size:20px}
+.panel p{margin:0 0 12px;opacity:.65;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.1);font-size:15px;font-weight:600}
+.chip[aria-pressed=true]{background:#2f6df6}
+.acts{display:flex;gap:8px;margin-top:16px}
+.acts button{flex:1;padding:12px;border-radius:12px;background:rgba(255,255,255,.12);font-weight:600;font-size:16px}
+.acts .go{background:#2f6df6}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div class="top">
+  <button class="seg" id="mMy"></button>
+  <button class="seg" id="mAll">All Teams</button>
+  <button class="gear" id="gear" aria-label="Choose teams">⚙️</button>
+</div>
+<div id="dateLabel"></div>
+<div id="list"></div>
+
+<div class="bar">
+  <button id="bY">Yesterday</button>
+  <button id="bT">Today</button>
+  <button id="bM">Tomorrow</button>
+  <div><input type="date" id="dp" aria-label="Pick date"></div>
+</div>
+
+<div id="sheet" hidden>
+  <div class="panel">
+    <h2>My Teams</h2>
+    <p>Tap to toggle. Saved on this device.</p>
+    <div class="chips" id="chips"></div>
+    <div class="acts">
+      <button id="reset">Reset</button>
+      <button id="clear">Clear</button>
+      <button id="done" class="go">Done</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const TEAMS=['ANA','BOS','BUF','CAR','CBJ','CGY','CHI','COL','DAL','DET','EDM','FLA','LAK','MIN','MTL','NJD','NSH','NYI','NYR','OTT','PHI','PIT','SEA','SJS','STL','TBL','TOR','UTA','VAN','VGK','WPG','WSH'];
-const DEFAULT_FAVS=['SJS','MTL','COL','EDM','NJD'];
-const ALLURE=['SJS','ANA'], ALLURE_TZ='America/Los_Angeles';
-const PROXIES=[u=>'https://corsproxy.io/?'+u, u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)];
+(function(){
+var WORKER='https://green-art-bfe1.tal-alexander25.workers.dev';
+var KEY='nhl.v1';
+var TEAMS=[['ANA','Anaheim'],['BOS','Boston'],['BUF','Buffalo'],['CGY','Calgary'],['CAR','Carolina'],['CHI','Chicago'],['COL','Colorado'],['CBJ','Columbus'],['DAL','Dallas'],['DET','Detroit'],['EDM','Edmonton'],['FLA','Florida'],['LAK','Los Angeles'],['MIN','Minnesota'],['MTL','Montréal'],['NSH','Nashville'],['NJD','New Jersey'],['NYI','NY Islanders'],['NYR','NY Rangers'],['OTT','Ottawa'],['PHI','Philadelphia'],['PIT','Pittsburgh'],['SJS','San Jose'],['SEA','Seattle'],['STL','St. Louis'],['TBL','Tampa Bay'],['TOR','Toronto'],['UTA','Utah'],['VAN','Vancouver'],['VGK','Vegas'],['WSH','Washington'],['WPG','Winnipeg']];
+var DEF=['SJS','MTL','COL','PHI','EDM','TOR'];
+var VALID={};TEAMS.forEach(function(t){VALID[t[0]]=1});
+var $=function(id){return document.getElementById(id)};
 
-const store={
-  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
-  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-};
-const pad=n=>String(n).padStart(2,'0');
-const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; // local date, not UTC
-const shift=(s,n)=>{const [y,m,d]=s.split('-').map(Number);return iso(new Date(y,m-1,d+n))};
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function load(){
+  try{
+    var s=JSON.parse(localStorage.getItem(KEY));
+    if(s&&Array.isArray(s.teams))return{mode:s.mode==='all'?'all':'my',teams:s.teams.filter(function(t){return VALID[t]})};
+  }catch(e){}
+  return{mode:'my',teams:DEF.slice()};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
 
-const S={
-  date:iso(new Date()),
-  mode:location.hash==='#allure'?'allure':store.get('mode','mine'), // mine | allure | all
-  favs:store.get('favs',DEFAULT_FAVS),
-  panel:false, games:[], loading:true, error:null
-};
+function ymd(d){var m=d.getMonth()+1,x=d.getDate();return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(x<10?'0':'')+x}
+function shift(n){var d=new Date();d.setDate(d.getDate()+n);return ymd(d)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 
-function fmtTime(utc){
-  const o={hour:'numeric',minute:'2-digit',timeZoneName:'short'};
-  if(S.mode==='allure')o.timeZone=ALLURE_TZ;
-  return new Date(utc).toLocaleTimeString('en-US',o);
+var st=load(),date=ymd(new Date()),games=[],reqId=0,ctl=null;
+
+function go(){
+  var id=++reqId;
+  if(ctl)ctl.abort();
+  ctl=window.AbortController?new AbortController():null;
+  $('list').innerHTML='<div class="spin" role="status" aria-label="Loading"></div>';
+  fetch(WORKER+'/v1/schedule/'+date,ctl?{signal:ctl.signal}:{})
+    .then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
+    .then(function(j){
+      if(id!==reqId)return;
+      var day=(j.gameWeek||[]).filter(function(d){return d.date===date})[0];
+      games=day&&day.games?day.games:[];
+      render();
+    })
+    .catch(function(e){
+      if(id!==reqId||(e&&e.name==='AbortError'))return;
+      $('list').innerHTML='<div class="msg">Couldn’t load games.<br><button id="retry">Try again</button></div>';
+      $('retry').onclick=go;
+    });
 }
 
-let reqId=0;
-async function load(){
-  const id=++reqId;
-  S.loading=true;S.error=null;render();
-  const url=`https://api-web.nhle.com/v1/schedule/${S.date}`;
-  let data=null,err;
-  for(const p of PROXIES){
-    try{const r=await fetch(p(url));if(!r.ok)throw new Error('HTTP '+r.status);data=await r.json();break}
-    catch(e){err=e}
+function team(t){
+  return '<div class="team"><img src="'+esc(t.darkLogo||t.logo)+'" alt="" width="64" height="64">'+
+    '<div class="abbr">'+esc(t.abbrev)+'</div><div class="city">'+esc(t.placeName&&t.placeName.default)+'</div></div>';
+}
+
+function card(g){
+  var a=g.awayTeam,h=g.homeTeam,s=g.gameState,mid,stat;
+  var live=s==='LIVE'||s==='CRIT',fin=s==='FINAL'||s==='OFF';
+  if(live||fin){
+    mid='<div class="mid">'+(a.score!=null?a.score:0)+' - '+(h.score!=null?h.score:0)+'</div>';
+    stat=live?'<span class="live">● LIVE</span>':'FINAL';
+  }else{
+    mid='<div class="mid at">@</div>';
+    stat=g.gameScheduleState&&g.gameScheduleState!=='OK'?esc(g.gameScheduleState):
+      new Date(g.startTimeUTC).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
   }
-  if(id!==reqId)return;
-  if(!data){S.error=err?err.message:'Failed to fetch';S.games=[]}
-  else{
-    const day=(data.gameWeek||[]).find(d=>d.date===S.date);
-    S.games=day?day.games:[];
-  }
-  S.loading=false;render();
-}
-
-function visible(){
-  const teams=S.mode==='allure'?ALLURE:S.mode==='mine'?S.favs:null;
-  if(!teams||!teams.length)return S.games;
-  return S.games.filter(g=>teams.includes(g.awayTeam.abbrev)||teams.includes(g.homeTeam.abbrev));
-}
-
-function status(g){
-  const s=g.gameState;
-  if(s==='LIVE'||s==='CRIT')return['LIVE','live'];
-  if(s==='FINAL'||s==='OFF')return['FINAL','final'];
-  return[fmtTime(g.startTimeUTC),''];
-}
-
-function teamHtml(t,showScore){
-  const logo=t.darkLogo||t.logo||`https://assets.nhle.com/logos/nhl/svg/${t.abbrev}_dark.svg`;
-  return `<div class="team"><img src="${esc(logo)}" alt="" onerror="this.style.visibility='hidden'">
-    <div class="abbr">${esc(t.abbrev)}</div><div class="city">${esc(t.placeName?.default)}</div>
-    ${showScore&&t.score!=null?`<div class="score">${t.score}</div>`:''}</div>`;
+  return '<div class="card"><div class="status">'+stat+'</div><div class="row">'+team(a)+mid+team(h)+'</div></div>';
 }
 
 function render(){
-  const m=S.mode, games=visible();
-  const b=(act,label,on,cls='')=>`<button data-act="${act}" class="${on?'on':''} ${cls}">${label}</button>`;
-  let h=`<h1>🏒 NHL</h1><div class="row">
-    ${b('mine',m==='mine'?`My Teams (${S.favs.length})`:'My Teams',m==='mine')}
-    ${b('allure','Allure',m==='allure','allure')}
-    ${b('all','All Teams',m==='all')}
-    ${m!=='allure'?`<button data-act="panel">${S.panel?'✕':'⚙️'}</button>`:''}</div>`;
-  if(S.panel&&m!=='allure'){
-    h+=`<div class="panel"><b style="font-size:14px">Select your teams:</b><div class="row">
-      ${TEAMS.map(t=>b('team:'+t,t,S.favs.includes(t))).join('')}</div></div>`;
+  var my=st.mode==='my';
+  $('mMy').textContent='My Teams ('+st.teams.length+')';
+  $('mMy').className='seg'+(my?' on':'');
+  $('mAll').className='seg'+(my?'':' on');
+  var d=new Date(date+'T12:00:00');
+  $('dateLabel').textContent=d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'});
+  $('dp').value=date;
+  $('bY').className=date===shift(-1)?'on':'';
+  $('bT').className=date===shift(0)?'on':'';
+  $('bM').className=date===shift(1)?'on':'';
+  var list=my?games.filter(function(g){return st.teams.indexOf(g.awayTeam.abbrev)>-1||st.teams.indexOf(g.homeTeam.abbrev)>-1}):games;
+  if(!list.length){
+    $('list').innerHTML=my?'<div class="msg">No games for your teams<br><a href="#" id="viewAll">View all games</a></div>':'<div class="msg">No games scheduled</div>';
+    if(my)$('viewAll').onclick=function(e){e.preventDefault();setMode('all')};
+    return;
   }
-  h+=`<div class="row"><input type="date" id="date" value="${S.date}"></div>`;
-  if(S.loading)h+=`<div class="msg"><div class="spin"></div><p>Loading games...</p></div>`;
-  else if(S.error)h+=`<div class="msg">Couldn't load games<br><small>${esc(S.error)}</small><br><button data-act="retry">Try again</button></div>`;
-  else if(!games.length){
-    const t=m==='allure'?'No Sharks or Ducks games':m==='mine'?'No games for your teams':'No games scheduled';
-    h+=`<div class="msg">${t}${m!=='all'?`<br><button data-act="all">View all games</button>`:''}</div>`;
-  }else{
-    h+=games.map(g=>{
-      const [txt,cls]=status(g), started=cls==='live'||cls==='final';
-      return `<div class="card"><div class="status ${cls}">${esc(txt)}</div>
-        <div class="teams">${teamHtml(g.awayTeam,started)}<div class="sep">${started?'-':'@'}</div>${teamHtml(g.homeTeam,started)}</div>
-        ${g.venue?.default?`<div class="venue">${esc(g.venue.default)}</div>`:''}</div>`;
-    }).join('');
-  }
-  h+=`<div class="nav"><button data-act="prev">← Yesterday</button><button class="on" data-act="today">Today</button><button data-act="next">Tomorrow →</button></div>`;
-  document.getElementById('app').innerHTML=h;
+  $('list').innerHTML=list.map(card).join('');
 }
 
-document.addEventListener('click',e=>{
-  const el=e.target.closest('[data-act]');if(!el)return;
-  const a=el.dataset.act;
-  if(a==='mine'||a==='all'||a==='allure'){S.mode=a;store.set('mode',a);render()}
-  else if(a==='panel'){S.panel=!S.panel;render()}
-  else if(a.startsWith('team:')){
-    const t=a.slice(5);
-    S.favs=S.favs.includes(t)?S.favs.filter(x=>x!==t):[...S.favs,t];
-    store.set('favs',S.favs);render();
-  }
-  else if(a==='prev'){S.date=shift(S.date,-1);load()}
-  else if(a==='next'){S.date=shift(S.date,1);load()}
-  else if(a==='today'){S.date=iso(new Date());load()}
-  else if(a==='retry')load();
-});
-document.addEventListener('change',e=>{
-  if(e.target.id==='date'&&e.target.value){S.date=e.target.value;load()}
-});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+function setMode(m){st.mode=m;save();render()}
+function setDate(d){if(d){date=d;go()}}
 
-load();
+function buildChips(){
+  $('chips').innerHTML=TEAMS.map(function(t){
+    return '<button class="chip" data-t="'+t[0]+'" aria-pressed="'+(st.teams.indexOf(t[0])>-1)+'">'+t[0]+' <span style="opacity:.6;font-weight:500">'+esc(t[1])+'</span></button>';
+  }).join('');
+}
+
+$('mMy').onclick=function(){setMode('my')};
+$('mAll').onclick=function(){setMode('all')};
+$('gear').onclick=function(){buildChips();$('sheet').hidden=false};
+$('done').onclick=function(){$('sheet').hidden=true};
+$('sheet').onclick=function(e){if(e.target===this)this.hidden=true};
+$('chips').onclick=function(e){
+  var b=e.target.closest('.chip');if(!b)return;
+  var t=b.getAttribute('data-t'),i=st.teams.indexOf(t);
+  if(i>-1)st.teams.splice(i,1);else st.teams.push(t);
+  b.setAttribute('aria-pressed',i<0);
+  save();render();
+};
+$('reset').onclick=function(){st.teams=DEF.slice();save();buildChips();render()};
+$('clear').onclick=function(){st.teams=[];save();buildChips();render()};
+$('bY').onclick=function(){setDate(shift(-1))};
+$('bT').onclick=function(){setDate(shift(0))};
+$('bM').onclick=function(){setDate(shift(1))};
+$('dp').onchange=function(){setDate(this.value)};
+document.addEventListener('visibilitychange',function(){if(!document.hidden)go()});
+
+render();go();
+})();
 </script>
 </body>
 </html>
